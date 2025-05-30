@@ -4,11 +4,11 @@ from typing import Callable
 
 
 class KafkaConsumerControl:
-    def __init__(self, host: str, port: int, topic: str,
+    def __init__(self, server_urls: list[str], topic: str,
                  auto_offset_reset: str = 'earliest', group_id: str = 'default-group'):
         self.topic = topic
         self.consumer = Consumer({
-            'bootstrap.servers': f'{host}:{port}',
+            'bootstrap.servers': ','.join(server_urls),
             'group.id': group_id,
             'auto.offset.reset': auto_offset_reset,
             'enable.auto.commit': True,
