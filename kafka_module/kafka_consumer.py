@@ -5,13 +5,16 @@ from typing import Callable
 
 class KafkaConsumerControl:
     def __init__(self, server_urls: list[str], topic: str,
-                 auto_offset_reset: str = 'earliest', group_id: str = 'default-group'):
+                 auto_offset_reset: str = 'earliest', group_id: str = 'default-group',
+                 enable_auto_commit: bool = False):
         self.topic = topic
+        self.enable_auto_commit = enable_auto_commit
+
         self.consumer = Consumer({
             'bootstrap.servers': ','.join(server_urls),
             'group.id': group_id,
             'auto.offset.reset': auto_offset_reset,
-            'enable.auto.commit': True,
+            'enable.auto.commit': enable_auto_commit,
         })
 
         self.consumer.subscribe([self.topic])
@@ -31,8 +34,14 @@ class KafkaConsumerControl:
 
                 value = msg.value()
                 if value is not None:
-                    data = json.loads(value.decode('utf-8'))
-                    call_back(data)
+                    try:
+                        data = json.loads(value.decode('utf-8'))
+                        call_back(data)
+
+                        if not self.enable_auto_commit:
+                            self.consumer.commit(msg)
+                    except Exception as e:
+                        print(f"[Processing Error] {e}")
 
         except KeyboardInterrupt:
             print("Kafka consumer interrupted")
@@ -41,7 +50,8 @@ class KafkaConsumerControl:
             self.close()
 
     def close(self):
-        self.consumer.close()
+        if hasattr(self, 'consumer'):
+            self.consumer.close()
 
     def __del__(self):
         self.close()
@@ -52,8 +62,7 @@ if __name__ == '__main__':
         print("Received:", data)
 
     consumer = KafkaConsumerControl(
-        host='192.168.0.100',
-        port=9091,
+        server_urls=['192.168.0.100:9091'],
         topic='test_topic',
         group_id='test_group'
     )
