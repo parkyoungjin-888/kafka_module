@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kafka-module"
-version = "0.1.4"
+version = "0.1.5"
 description = ""
 authors = ["parkyoungjin-888 <pyj8813@gmail.com>"]
 readme = "README.md"
@@ -8,6 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 confluent-kafka = "^2.10.0"
+config_module = { git = "https://github.com/parkyoungjin-888/config_module.git" }
 data-model-module = { git = "https://github.com/parkyoungjin-888/data_model_module.git" }
 
 

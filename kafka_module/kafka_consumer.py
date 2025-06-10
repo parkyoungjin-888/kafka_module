@@ -1,12 +1,22 @@
+import os
+import asyncio
+import inspect
 from confluent_kafka import Consumer, KafkaError
 import json
 from typing import Callable
+from config_module.config_singleton import ConfigSingleton
+from utils_module.logger import LoggerSingleton
 
 
 class KafkaConsumerControl:
     def __init__(self, server_urls: list[str], topic: str,
                  auto_offset_reset: str = 'earliest', group_id: str = 'default-group',
                  enable_auto_commit: bool = False):
+        config = ConfigSingleton()
+        app_config = config.get_value('app')
+        log_level = os.environ.get('LOG_LEVEL', 'DEBUG')
+        self.logger = LoggerSingleton.get_logger(f'{app_config["name"]}.kafka', level=log_level)
+
         self.topic = topic
         self.enable_auto_commit = enable_auto_commit
 
@@ -20,6 +30,7 @@ class KafkaConsumerControl:
         self.consumer.subscribe([self.topic])
 
     def start_consumer(self, call_back: Callable[[dict], None]):
+        loop = asyncio.get_event_loop()
         try:
             while True:
                 msg = self.consumer.poll(1.0)
@@ -29,19 +40,24 @@ class KafkaConsumerControl:
 
                 if msg.error():
                     if msg.error().code() != KafkaError._PARTITION_EOF:
-                        print(f"[Kafka Error] {msg.error()}")
+                        self.logger.error(msg.error())
                     continue
 
                 value = msg.value()
                 if value is not None:
                     try:
                         data = json.loads(value.decode('utf-8'))
-                        call_back(data)
+
+                        if inspect.iscoroutinefunction(call_back):
+                            loop.run_until_complete(call_back(data))
+                        else:
+                            call_back(data)
 
                         if not self.enable_auto_commit:
                             self.consumer.commit(msg)
+
                     except Exception as e:
-                        print(f"[Processing Error] {e}")
+                        self.logger.error(str(e))
 
         except KeyboardInterrupt:
             print("Kafka consumer interrupted")
