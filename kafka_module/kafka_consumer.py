@@ -1,6 +1,5 @@
 import os
 import asyncio
-import inspect
 from confluent_kafka import Consumer, KafkaError
 import json
 from typing import Callable
@@ -29,15 +28,13 @@ class KafkaConsumerControl:
 
         self.consumer.subscribe([self.topic])
 
-    def start_consumer(self, call_back: Callable[[dict], None]):
-        loop = asyncio.get_event_loop()
+    async def start_consumer_async(self, call_back: Callable[[dict], None]):
         try:
             while True:
                 msg = self.consumer.poll(1.0)
-
                 if msg is None:
+                    await asyncio.sleep(0.01)
                     continue
-
                 if msg.error():
                     if msg.error().code() != KafkaError._PARTITION_EOF:
                         self.logger.error(msg.error())
@@ -47,21 +44,38 @@ class KafkaConsumerControl:
                 if value is not None:
                     try:
                         data = json.loads(value.decode('utf-8'))
-
-                        if inspect.iscoroutinefunction(call_back):
-                            loop.run_until_complete(call_back(data))
-                        else:
-                            call_back(data)
-
+                        await call_back(data)
                         if not self.enable_auto_commit:
                             self.consumer.commit(msg)
-
                     except Exception as e:
-                        self.logger.error(str(e))
-
+                        self.logger.error(f"Consumer Error: {str(e)}")
         except KeyboardInterrupt:
             print("Kafka consumer interrupted")
+        finally:
+            self.close()
 
+    def start_consumer_sync(self, call_back: Callable[[dict], None]):
+        try:
+            while True:
+                msg = self.consumer.poll(1.0)
+                if msg is None:
+                    continue
+                if msg.error():
+                    if msg.error().code() != KafkaError._PARTITION_EOF:
+                        self.logger.error(msg.error())
+                    continue
+
+                value = msg.value()
+                if value is not None:
+                    try:
+                        data = json.loads(value.decode('utf-8'))
+                        call_back(data)
+                        if not self.enable_auto_commit:
+                            self.consumer.commit(msg)
+                    except Exception as e:
+                        self.logger.error(f"Consumer Error: {str(e)}")
+        except KeyboardInterrupt:
+            print("Kafka consumer interrupted")
         finally:
             self.close()
 
@@ -82,5 +96,5 @@ if __name__ == '__main__':
         topic='test_topic',
         group_id='test_group'
     )
-    consumer.start_consumer(process_message)
+    consumer.start_consumer_sync(process_message)
 

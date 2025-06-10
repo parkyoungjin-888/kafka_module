@@ -46,14 +46,16 @@ if __name__ == '__main__':
     from datetime import datetime
 
     _server_urls = ['192.168.0.100:9091', '192.168.0.100:9092', '192.168.0.100:9093']
-    kafka_producer = KafkaProducerControl(_server_urls, 'test_topic', 'test_key')
+    kafka_producer = KafkaProducerControl(_server_urls, 'WEBCAM', 'test_key')
 
-    for i in range(10):
-        payload = {
-            'name': f'test_{i}',
-            'timestamp': datetime.now().timestamp(),
-            'value': i
-        }
-        kafka_producer.send(payload)
+    payload = {
+        "device_id": "cam2",
+        "name": "cam2_250610_180620_637273.jpg",
+        "timestamp": 1749546380.637273,
+        "width": 1280,
+        "height": 720,
+        "img": ""
+    }
+    kafka_producer.send(payload)
 
-    print('Done')
+print('Done')
