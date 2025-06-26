@@ -1,5 +1,6 @@
 from confluent_kafka import Producer
 from json import dumps
+from uuid import uuid4
 
 
 class KafkaProducerControl:
@@ -11,7 +12,7 @@ class KafkaProducerControl:
             'bootstrap.servers': ','.join(server_urls),
             'enable.idempotence': True,
             'acks': 'all',
-            'transactional.id': 'raw-producer-1',
+            'transactional.id': f'transactional-producer-{uuid4()}',
             'linger.ms': 5,
             'compression.type': 'gzip',
         })
